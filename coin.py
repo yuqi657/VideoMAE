@@ -65,9 +65,9 @@ class COINVideoClsDataset(Dataset):
         clip_start = video_data["clip_start"]
         clip_end = video_data["clip_end"]
         annotation = video_data["annotation"]
-        video = self.__get_rawvideo(video_id, clip_start, clip_end)
+        video = self.__get_rawvideo(video_id, clip_start, clip_end) # (channel, video_length, height, weight)
 
-        video_target = np.zeros(video.shape[0]//2)
+        video_target = np.zeros(video.shape[1]//2)
         for anno in annotation:
             start, end = anno["segment"]
             video_target[start - clip_start: end + 1 - clip_start] = int(anno["id"])
@@ -81,10 +81,10 @@ class COINVideoClsDataset(Dataset):
         try:
             video_frms = os.listdir(video_path)
             video_frms.sort()
-            video_frms = video_frms[2*clip_start: 2*clip_end+1]
+            video_frms = video_frms[2*clip_start: 2*(clip_end+1)]
 
             if len(video_frms) != 64:  # if odd, append last frame to even. cause videomae tublet size is 2*x*x
-                print("dont have 64 frames: ", video_id, clip_start, " - ", clip_end)
+                print("dont have 64 frames: ", video_id, clip_start, " - ", clip_end, video_frms)
                 video_frms.append(video_frms[-1])
 
             # pre-process frames
@@ -106,7 +106,7 @@ class COINVideoClsDataset(Dataset):
 
         except Exception as e:
             print('Exception: ', e)
-            raw_sample_frms = np.zeros((64, 3, 224, 224))
+            raw_sample_frms = torch.zeros((64, 3, 224, 224))
 
         raw_sample_frms = raw_sample_frms.permute(1, 0, 2, 3) # (channel, video_length, height, weight)
         return raw_sample_frms

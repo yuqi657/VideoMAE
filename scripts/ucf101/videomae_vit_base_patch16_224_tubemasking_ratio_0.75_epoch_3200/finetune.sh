@@ -7,7 +7,7 @@ MODEL_PATH='YOUR_PATH/ucf_videomae_pretrain_base_patch16_224_frame_16x4_tube_mas
 
 # batch_size can be adjusted according to number of GPUs
 # this script is for 8 GPUs (1 nodes x 8 GPUs)
-OMP_NUM_THREADS=1 python3 -m torch.distributed.launch --nproc_per_node=8 \
+OMP_NUM_THREADS=1 python3 -m torch.distributed.launch --nproc_per_node=4 \
     --master_port 12320  run_class_finetuning.py \
     --model vit_base_patch16_224 \
     --data_path ${DATA_PATH} \

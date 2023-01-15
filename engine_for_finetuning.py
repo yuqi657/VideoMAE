@@ -14,7 +14,7 @@ def train_class_batch(model, samples, target, criterion):
     outputs = model(samples)
     # loss = criterion(outputs, target)
     # for coin, do some reshape
-    loss = criterion(outputs.reshape(-1, outputs.size(-1)), target.to(torch.int16).reshape(-1))
+    loss = criterion(outputs.reshape(-1, outputs.size(-1)), target)
     return loss, outputs
 
 

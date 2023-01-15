@@ -1,10 +1,9 @@
-OUTPUT_DIR='YOUR_PATH/ssv2_videomae_pretrain_base_patch16_224_frame_16x2_tube_mask_ratio_0.9_e800/eval_lr_5e-4_epoch_50'
-DATA_PATH='YOUR_PATH/list_ssv2'
-MODEL_PATH='YOUR_PATH/ssv2_videomae_pretrain_base_patch16_224_frame_16x2_tube_mask_ratio_0.9_e800/checkpoint-799.pth'
+OUTPUT_DIR='/root/autodl-tmp/code/videomae_wrapper/ckpts/coin_base'
+DATA_PATH='/root/autodl-tmp/data/COIN/split_anno'
+MODEL_PATH='/root/autodl-tmp/pretrained_models/videomae/checkpoint_base.pth'
 
 OMP_NUM_THREADS=1 python -m torch.distributed.launch --nproc_per_node=8 \
-    --master_port 12320 --nnodes=1 \
-    --node_rank=0 --master_addr=$ip_node_0 \
+    --master_port 12320 \
     run_class_finetuning.py \
     --model vit_base_patch16_224 \
     --data_set COIN \
@@ -13,11 +12,11 @@ OMP_NUM_THREADS=1 python -m torch.distributed.launch --nproc_per_node=8 \
     --finetune ${MODEL_PATH} \
     --log_dir ${OUTPUT_DIR} \
     --output_dir ${OUTPUT_DIR} \
-    --batch_size 8 \
+    --batch_size 2 \
     --num_sample 1 \
     --input_size 224 \
     --short_side_size 224 \
-    --save_ckpt_freq 10 \
+    --save_ckpt_freq 1 \
     --num_frames 64 \
     --opt adamw \
     --lr 5e-4 \

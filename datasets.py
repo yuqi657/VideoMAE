@@ -180,8 +180,6 @@ def build_dataset(is_train, test_mode, args):
         nb_classes = 51
 
     elif args.data_set == 'COIN':
-        mode = None
-        anno_path = None
         if is_train is True:
             mode = 'train'
             anno_path = os.path.join(args.data_path, 'coin_split_train.json')
@@ -194,7 +192,7 @@ def build_dataset(is_train, test_mode, args):
 
         dataset = COINVideoClsDataset(
             anno_path=anno_path,
-            data_path='/',
+            data_path='/root/autodl-tmp/data/COIN/coin_frames',
             mode=mode,
             clip_len=1,
             num_segment=args.num_frames,

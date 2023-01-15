@@ -4,6 +4,7 @@ from transforms import *
 from masking_generator import TubeMaskingGenerator
 from kinetics import VideoClsDataset, VideoMAE
 from ssv2 import SSVideoClsDataset
+from coin import COINVideoClsDataset
 
 
 class DataAugmentationForVideoMAE(object):
@@ -177,6 +178,36 @@ def build_dataset(is_train, test_mode, args):
             new_width=320,
             args=args)
         nb_classes = 51
+
+    elif args.data_set == 'COIN':
+        mode = None
+        anno_path = None
+        if is_train is True:
+            mode = 'train'
+            anno_path = os.path.join(args.data_path, 'coin_split_train.json')
+        elif test_mode is True:
+            mode = 'test'
+            anno_path = os.path.join(args.data_path, 'coin_split_test.json')
+        else:
+            mode = 'validation'
+            anno_path = os.path.join(args.data_path, 'coin_split_test.json')
+
+        dataset = COINVideoClsDataset(
+            anno_path=anno_path,
+            data_path='/',
+            mode=mode,
+            clip_len=1,
+            num_segment=args.num_frames,
+            test_num_segment=args.test_num_segment,
+            test_num_crop=args.test_num_crop,
+            num_crop=1 if not test_mode else 3,
+            keep_aspect_ratio=True,
+            crop_size=args.input_size,
+            short_side_size=args.short_side_size,
+            new_height=256,
+            new_width=320,
+            args=args)
+        nb_classes = 779
     else:
         raise NotImplementedError()
     assert nb_classes == args.nb_classes

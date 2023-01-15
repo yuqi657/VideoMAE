@@ -203,6 +203,7 @@ class VisionTransformer(nn.Module):
         self.patch_embed = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim, num_frames=all_frames, tubelet_size=self.tubelet_size)
         num_patches = self.patch_embed.num_patches
+        self.patch_embed_shape = (all_frames // tubelet_size, img_size // patch_size, img_size // patch_size)
         self.use_checkpoint = use_checkpoint
 
         if use_learnable_pos_emb:
@@ -273,16 +274,20 @@ class VisionTransformer(nn.Module):
             for blk in self.blocks:
                 x = blk(x)
 
-        x = self.norm(x)
+        x = self.norm(x) # shape here is (B, L, D)
+
+        # reshape to (B, clip_length, #patch^2, D)
+        x = x.view((x.shape[0],) + self.patch_embed_shape + (x.shape[-1],)).flatten(2, 3)
+
         if self.fc_norm is not None:
-            return self.fc_norm(x.mean(1))
+            return self.fc_norm(x.mean(2))
         else:
             return x[:, 0]
 
     def forward(self, x):
         x = self.forward_features(x)
         x = self.head(self.fc_dropout(x))
-        return x
+        return x # shape here is (B, clip_length, D)
 
 
 @register_model

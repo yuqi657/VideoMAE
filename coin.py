@@ -50,7 +50,7 @@ class COINVideoClsDataset(Dataset):
         for item in coin_data:
             if item["video_id"] in videos_dict:
                 data.append(item)
-        self.data = data
+        self.data = data # [:50]
 
         self.transform = transforms.Compose([
             transforms.Resize(self.crop_size, interpolation=InterpolationMode.BICUBIC),

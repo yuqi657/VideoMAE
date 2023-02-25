@@ -17,7 +17,7 @@ from timm.utils import ModelEma
 from optim_factory import create_optimizer, get_parameter_groups, LayerDecayValueAssigner
 
 from datasets import build_dataset
-from engine_for_finetuning import train_one_epoch, validation_one_epoch, final_test, merge
+from engine_for_finetuning import train_one_epoch, validation_one_epoch, test_one_epoch
 from utils import NativeScalerWithGradNormCount as NativeScaler
 from utils import  multiple_samples_collate
 import utils
@@ -228,9 +228,11 @@ def main(args, ds_init):
         dataset_val = None
     else:
         dataset_val, _ = build_dataset(is_train=False, test_mode=False, args=args)
-    # dataset_test, _ = build_dataset(is_train=False, test_mode=True, args=args)
-    dataset_test = None
-    
+
+    if args.eval:
+        dataset_test, _ = build_dataset(is_train=False, test_mode=True, args=args)
+    else:
+        dataset_test = None
 
     num_tasks = utils.get_world_size()
     global_rank = utils.get_rank()
@@ -238,6 +240,12 @@ def main(args, ds_init):
         dataset_train, num_replicas=num_tasks, rank=global_rank, shuffle=True
     )
     print("Sampler_train = %s" % str(sampler_train))
+
+    if args.eval:
+        sampler_test = torch.utils.data.DistributedSampler(
+            dataset_test, num_replicas=num_tasks, rank=global_rank, shuffle=False)
+    print("Sampler_test = %s" % str(sampler_test))
+
     if args.dist_eval:
         if len(dataset_val) % num_tasks != 0:
             print('Warning: Enabling distributed evaluation with an eval dataset not divisible by process number. '
@@ -474,18 +482,7 @@ def main(args, ds_init):
         optimizer=optimizer, loss_scaler=loss_scaler, model_ema=model_ema)
 
     if args.eval:
-        preds_file = os.path.join(args.output_dir, str(global_rank) + '.txt')
-        test_stats = final_test(data_loader_test, model, device, preds_file)
-        torch.distributed.barrier()
-        if global_rank == 0:
-            print("Start merging results...")
-            final_top1 ,final_top5 = merge(args.output_dir, num_tasks)
-            print(f"Accuracy of the network on the {len(dataset_test)} test videos: Top-1: {final_top1:.2f}%, Top-5: {final_top5:.2f}%")
-            log_stats = {'Final top-1': final_top1,
-                        'Final Top-5': final_top1}
-            if args.output_dir and utils.is_main_process():
-                with open(os.path.join(args.output_dir, "log.txt"), mode="a", encoding="utf-8") as f:
-                    f.write(json.dumps(log_stats) + "\n")
+        test_stats = test_one_epoch(data_loader_test, model, device)
         exit(0)
         
 

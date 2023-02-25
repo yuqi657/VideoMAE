@@ -176,6 +176,82 @@ def validation_one_epoch(data_loader, model, device):
 
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
+@torch.no_grad()
+def test_one_epoch(data_loader, model, device):
+
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    header = 'Test:'
+
+    # switch to evaluation mode
+    model.eval()
+
+    video_preds = {}
+    video_targets = {}
+    for batch in metric_logger.log_every(data_loader, 10, header):
+        videos = batch[0]
+        target = batch[1]
+        videos = videos.to(device, non_blocking=True).half()
+        target = target.to(device, non_blocking=True)
+        video_ids = batch[2]
+
+        # compute output
+        logits = model(videos)
+        """
+        video_id: (batch_size)
+        logits: (batch_size, video_len, n_classes)
+        video_target: (batch_size, video_len)
+        """
+        batch_size = logits.shape[0]
+        # print("video_ids[0]", video_ids[0], "video_target[0]: ", video_target[0], "logits[0]:", logits[0,:,0])
+        for i in range(batch_size):
+            video_id = video_ids[i]
+            if video_id not in video_preds:
+                video_preds[video_id] = [logits[i].to(torch.float16).cpu().detach().numpy()]
+                video_targets[video_id] = [target[i].cpu().detach().numpy()]
+            else:
+                video_preds[video_id].append(logits[i].to(torch.float16).cpu().detach().numpy())
+                video_targets[video_id].append(target[i].cpu().detach().numpy())
+    np.save("coin_preds.npy", video_preds)
+    np.save("video_targets.npy", video_targets)
+    print("----save ok-------")
+
+    window_step = 8
+    window_size = 32
+    video_merge = {}
+    video_target_merge = {}
+    acc = 0.
+    cnt = 0
+    for video_id, preds in video_preds.items():
+        num_windows = len(preds)
+        merge_logits = np.zeros(
+            (window_step * (num_windows - 1) + window_size, preds[0].shape[-1]))  # (video_len, 779)
+        merge_logits_cnt = np.zeros((window_step * (num_windows - 1) + window_size, 1))  # (video_len,1)
+        merge_video_targets = np.zeros(window_step * (num_windows - 1) + window_size)  # (video_len)
+        for i, window_logits in enumerate(preds):
+            merge_logits[i * window_step: i * window_step + window_size] += window_logits
+            merge_logits_cnt[i * window_step: i * window_step + window_size] += np.ones((window_size, 1))
+            # print("video_targets[video_id][i] shape:", video_targets[video_id][i].shape)
+            merge_video_targets[i * window_step: i * window_step + window_size] += video_targets[video_id][i]
+
+        # print("merge_logits", merge_logits.shape, "merge_logits_cnt", merge_logits_cnt.shape, "merge_video_targets", merge_video_targets.shape)
+        merge_logits /= merge_logits_cnt
+        merge_logits = merge_logits.argmax(axis=1)
+        # print("argmax merge_logits", merge_logits.shape)
+        merge_video_targets /= merge_logits_cnt.squeeze()
+        # merge_video_targets = merge_video_targets.squeeze()
+        video_merge[video_id] = merge_logits
+        video_target_merge[video_id] = merge_video_targets  # shape is (video_len)
+
+        # print("merge_logits: ", merge_logits.astype(int), "\n merge_video_targets: ", merge_video_targets.astype(int))
+        acc += (float(sum(merge_logits.astype(int) == merge_video_targets.astype(int)))) / (len(merge_logits))
+        cnt += 1
+
+    print("Frame Acc: ", acc / cnt)
+    np.save("coin_merge_preds.npy", video_preds)
+    np.save("coin_merge_video_targets.npy", video_preds)
+    print("----save merge ok-------")
+
+
 
 
 @torch.no_grad()
